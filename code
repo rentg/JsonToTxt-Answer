@@ -1,0 +1,83 @@
+#直接从原始json文件提取相关信息并且制作答案
+#遍历一个文件夹，处理一周数据
+#20131201
+import time
+import json
+import hashlib
+import os
+
+global TwDic
+TwDic={}#键为MD5，值为mid序列
+AnswerDic = {}#键为mid，值为是否转发
+
+def InfoFromOneJson(infile):    
+    for line in infile:
+        if '{"delete":{' in line:
+            continue
+        try:
+            dict = json.loads(line)#json转为dict
+        except Exception,ex:
+            print "error"
+            continue
+        mid = str(dict[u'id_str'])#微博id
+        u_verified = str(dict[u'user'][u'verified'])#是否认证
+        u_followers_count= str(dict[u'user'][u'followers_count'])#粉丝数
+        u_listed_count= str(str(dict[u'user'][u'listed_count']))#用户属于小组数
+        u_statuses_count = str(dict[u'user'][u'statuses_count'])#用户历史微博数
+        u_friends_count= str(dict[u'user'][u'friends_count'])#关注数
+        u_protected= str(dict[u'user'][u'protected'])#用户是否保护自己的账户
+        #u_location= '0000'str(dict[u'user'][u'location']).encode('utf-8')
+        #u_description= dict[u'user'][u'description'].encode('utf-8').replace('\\n',' ')
+        time_created_at = str(dict[u'created_at'])#微博创建时间
+        #s_lang = str(dict[u'lang']).encode('utf-8')#什么语言
+        #s_isreply = dict.has_key[u'in_reply_to_status_id_str']#是否是一个对话
+        if 'retweeted_status' not in line:
+            t_text = str(dict[u'text'].encode('utf-8'))#文本内容
+            t_textmd5 = hashlib.md5(t_text).hexdigest()#文本MD5加密
+            s_rtbefore = bool(int(str(dict[u'retweet_count'])))#以前是否被转发过
+            #s_lang = str(dict[u'lang']).encode('utf-8')#什么语言
+            #t_hash = dict.has_key[u'entities'][u'hashtags']##
+            #t_mentions = dict.has_key[u'entities'][u'user_mentions']#@
+            #t_url = dict.has_key[u'entities'][u'urls']#url
+            #t_media = dict.has_key[u'entities'][u'media']#jpg      
+        else:
+            t_text = str(dict[u'retweeted_status'][u'text'].encode('utf-8'))#文本内容
+            t_textmd5 = hashlib.md5(t_text).hexdigest()#文本MD5加密
+            s_rtbefore = bool(int(str(dict[u'retweeted_status'][u'retweet_count'])))#以前是否被转发过
+            #s_lang = str(dict[u'retweeted_status'][u'lang']).encode('utf-8')#什么语言
+            #t_hash = dict.has_key[u'retweeted_status'][u'entities'][u'hashtags']##
+            #t_mentions = dict.has_key[u'retweeted_status'][u'entities'][u'user_mentions']#@
+            #t_url = dict.has_key[u'retweeted_status'][u'entities'][u'urls']#url
+            #t_media = dict.has_key[u'retweeted_status'][u'entities'][u'media']#jpg
+        mylist = [mid,time_created_at,u_verified,u_followers_count,u_friends_count,u_listed_count,u_statuses_count,u_protected,s_rtbefore,t_text]#输出列表 
+        if TwDic.has_key(t_textmd5):#依据MD5建立字典
+            TwDic[t_textmd5]=TwDic[t_textmd5]+' '+mid#全部字典
+        else:
+            TwDic[t_textmd5]=mid
+        out.write(str(mylist)+"\n")
+print "程序开始~"
+print time.strftime('%Y-%m-%d-%H-%M-%S',time.localtime(time.time()))
+out= open('F:\\data\\0208信息.txt','w+')
+out_answer= open('F:\\data\\0208二值答案.txt','w+')
+out.write("mid,time_created_at,u_verified,u_followers_count,u_friends_count,u_listed_count,u_statuses_count,u_protected,u_location,s_rtbefore,t_text\n")
+filenames = os.listdir('F:\\0208')
+for filename in filenames:
+    infile=open('F:\\0208\\'+filename,"r")
+    InfoFromOneJson(infile)
+    infile.close()
+
+for key in TwDic:#创建二值答案字典
+    value = (TwDic[key].split(' '))
+    if len(value)== 1:
+        AnswerDic[value[0]] = 0
+    else:
+        for i in range(len(value)-2):
+            AnswerDic[value[i]] = 1
+        AnswerDic[value[len(value)-1]]=0
+jsonDumpsIndentStr = json.dumps(AnswerDic,indent=1)#字典格式化
+out_answer.write(jsonDumpsIndentStr)
+
+
+out.close()
+out_answer.close()
+print time.strftime('%Y-%m-%d-%H-%M-%S',time.localtime(time.time()))
